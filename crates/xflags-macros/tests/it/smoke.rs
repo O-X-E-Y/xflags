@@ -59,15 +59,17 @@ impl RustAnalyzer {
         while let Some(arg_) = p_.pop_flag() {
             match arg_ {
                 Ok(flag_) => match (state_, flag_.as_str()) {
+                    (0, "--help" | "-h") => return Err(p_.help(Self::HELP_)),
                     (0, "--log-file") => log_file.push(p_.next_value(&flag_)?.into()),
                     (0, "--verbose" | "-v") => verbose.push(()),
                     (0, "--number" | "-n") => number.push(p_.next_value_from_str::<u32>(&flag_)?),
                     (0, "--data") => data.push(p_.next_value(&flag_)?.into()),
                     (0, "--emoji") => emoji.push(()),
-                    (0, "--help" | "-h") => return Err(p_.help(Self::HELP_)),
                     _ => return Err(p_.unexpected_flag(&flag_)),
                 },
                 Err(arg_) => match (state_, arg_.to_str().unwrap_or("")) {
+                    (0, "help") => return Err(p_.help(Self::HELP_)),
+                    (0, "help") => return Err(p_.help(Self::HELP_)),
                     (0, _) => {
                         if let (done_ @ false, buf_) = &mut workspace {
                             buf_.push(arg_.into());
@@ -97,29 +99,20 @@ impl RustAnalyzer {
     }
 }
 impl RustAnalyzer {
-    const HELP_: &'static str = "\
-rust-analyzer
-  LSP server for rust.
+    const HELP_: &'static str =
+        "Usage: rust-analyzer <workspace> [jobs] [--log-file] <-v>... <-n> <--data>... [--emoji]
 
-ARGS:
-    <workspace>
+LSP server for rust.
 
-    [jobs]
-      Number of concurrent jobs.
+Arguments:
+  <workspace>       
+  [jobs]            Number of concurrent jobs.
 
-OPTIONS:
-    --log-file <path>
-      Path to log file. By default, logs go to stderr.
-
-    -v, --verbose
-
-    -n, --number <n>
-
-    --data <value>
-
-    --emoji
-
-    -h, --help
-      Prints help information.
+Options:
+  --log-file <path> Path to log file. By default, logs go to stderr.
+  -v, --verbose     
+  -n, --number <n>  
+  --data <value>    
+  --emoji           
 ";
 }

@@ -56,6 +56,8 @@ impl RepeatedPos {
                     _ => return Err(p_.unexpected_flag(&flag_)),
                 },
                 Err(arg_) => match (state_, arg_.to_str().unwrap_or("")) {
+                    (0, "help") => return Err(p_.help(Self::HELP_)),
+                    (0, "help") => return Err(p_.help(Self::HELP_)),
                     (0, _) => {
                         if let (done_ @ false, buf_) = &mut a {
                             buf_.push(arg_.into());
@@ -91,20 +93,11 @@ impl RepeatedPos {
     }
 }
 impl RepeatedPos {
-    const HELP_: &'static str = "\
-RepeatedPos
-
-ARGS:
-    <a>
-
-    [b]
-
-    [c]
-
-    <rest>...
-
-OPTIONS:
-    -h, --help
-      Prints help information.
+    const HELP_: &'static str = "Usage: RepeatedPos <a> [b] [c] <rest>...
+Arguments:
+  <a>               
+  [b]               
+  [c]               
+  <rest>...         
 ";
 }

@@ -63,12 +63,15 @@ impl Helpful {
         while let Some(arg_) = p_.pop_flag() {
             match arg_ {
                 Ok(flag_) => match (state_, flag_.as_str()) {
+                    (0, "--help" | "-h") => return Err(p_.help(Self::HELP_)),
                     (0 | 1, "--switch" | "-s") => switch.push(()),
-                    (0 | 1, "--help" | "-h") => return Err(p_.help(Self::HELP_)),
+                    (1, "--help" | "-h") => return Err(p_.help(Self::HELP_SUB__)),
                     (1, "--flag" | "-f") => sub__flag.push(()),
                     _ => return Err(p_.unexpected_flag(&flag_)),
                 },
                 Err(arg_) => match (state_, arg_.to_str().unwrap_or("")) {
+                    (0, "help") => return Err(p_.help(Self::HELP_)),
+                    (0, "help") => return Err(p_.help(Self::HELP_)),
                     (0, "sub") => state_ = 1,
                     (0, _) => {
                         if let (done_ @ false, buf_) = &mut src {
@@ -83,6 +86,8 @@ impl Helpful {
                         }
                         return Err(p_.unexpected_arg(arg_));
                     }
+                    (1, "help") => return Err(p_.help(Self::HELP_SUB__)),
+                    (1, "help") => return Err(p_.help(Self::HELP_SUB__)),
                     _ => return Err(p_.unexpected_arg(arg_)),
                 },
             }
@@ -99,38 +104,31 @@ impl Helpful {
     }
 }
 impl Helpful {
-    const HELP_: &'static str = "\
-helpful
-  Does stuff
+    const HELP_SUB__: &'static str = "Usage: sub [-f]
 
-  Helpful stuff.
+And even a subcommand!
 
-ARGS:
-    [src]
-      With an arg.
-
-    [extra]
-      Another arg.
-
-      This time, we provide some extra info about the
-      arg. Maybe some caveats, or what kinds of
-      values are accepted.
-
-OPTIONS:
-    -s, --switch
-      And a switch.
-
-    -h, --help
-      Prints help information.
-
-SUBCOMMANDS:
-
-helpful sub
-  And even a subcommand!
-
-  OPTIONS:
-    -f, --flag
-      With an optional flag. This has a really long
-      description which spans multiple lines.
+Options:
+  -f, --flag        With an optional flag. This has a really long
+description which spans multiple lines.
 ";
+    const HELP_: &'static str = "Usage: helpful [src] [extra] <-s>
+
+Does stuff
+
+Helpful stuff.
+
+Arguments:
+  [src]             With an arg.
+  [extra]           Another arg.
+
+This time, we provide some extra info about the
+arg. Maybe some caveats, or what kinds of
+values are accepted.
+
+Options:
+  -s, --switch      And a switch.
+
+Commands:
+  sub               And even a subcommand!";
 }
