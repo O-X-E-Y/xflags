@@ -28,29 +28,16 @@ pub(crate) fn xflags(ts: TokenStream) -> Result<ast::XFlags> {
     let doc = opt_doc(p)?;
     let mut cmd = cmd(p)?;
     cmd.doc = doc;
-    add_help(&mut cmd);
     let res = ast::XFlags { src, cmd };
     Ok(res)
 }
 
 pub(crate) fn parse_or_exit(ts: TokenStream) -> Result<ast::XFlags> {
     let p = &mut Parser::new(ts);
-    let mut cmd = anon_cmd(p)?;
+    let cmd = anon_cmd(p)?;
     assert!(cmd.subcommands.is_empty());
-    add_help(&mut cmd);
     let res = ast::XFlags { src: None, cmd };
     Ok(res)
-}
-
-fn add_help(cmd: &mut ast::Cmd) {
-    let help = ast::Flag {
-        arity: ast::Arity::Optional,
-        name: "help".to_string(),
-        short: Some("h".to_string()),
-        doc: Some("Prints help information.".to_string()),
-        val: None,
-    };
-    cmd.flags.push(help);
 }
 
 macro_rules! format_err {
