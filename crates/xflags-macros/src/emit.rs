@@ -391,15 +391,8 @@ fn emit_default_transitions(buf: &mut String, cmd: &ast::Cmd) {
 fn emit_help(buf: &mut String, xflags: &ast::XFlags) {
     w!(buf, "impl {} {{\n", xflags.cmd.ident());
 
-    let help = {
-        let mut buf = String::new();
-        help_rec(&mut buf, "", &xflags.cmd);
-        buf
-    };
-    let help = format!("{:?}", help);
-    let help = help.replace("\\n", "\n").replacen('\"', "\"\\\n", 1);
+    cmd_help_rec(buf, &xflags.cmd, "");
 
-    w!(buf, "const HELP_: &'static str = {help};");
     w!(buf, "}}\n");
 }
 
