@@ -3,9 +3,7 @@ use crate::{ast, update};
 use std::{env, fmt::Write, path::Path};
 
 macro_rules! w {
-    ($($tt:tt)*) => {
-        drop(write!($($tt)*))
-    };
+    ($($tt:tt)*) => {{ let _ = write!($($tt)*); }};
 }
 
 pub(crate) fn emit(xflags: &ast::XFlags) -> String {
@@ -135,7 +133,7 @@ fn emit_api(buf: &mut String, xflags: &ast::XFlags) {
     w!(buf, "}}\n");
 }
 
-fn emit_impls(buf: &mut String, xflags: &ast::XFlags) -> () {
+fn emit_impls(buf: &mut String, xflags: &ast::XFlags) {
     w!(buf, "impl {} {{\n", xflags.cmd.ident());
     w!(buf, "    fn from_env_or_exit_() -> Self {{\n");
     w!(buf, "        Self::from_env_().unwrap_or_else(|err| err.exit())\n");
@@ -156,13 +154,20 @@ fn emit_impls(buf: &mut String, xflags: &ast::XFlags) -> () {
 fn emit_parse(buf: &mut String, cmd: &ast::Cmd) {
     w!(buf, "impl {} {{\n", cmd.ident());
     w!(buf, "fn parse_(p_: &mut xflags::rt::Parser) -> xflags::Result<Self> {{\n");
-    w!(buf, "#![allow(non_snake_case)]\n");
+    w!(buf, "#![allow(non_snake_case, unused_mut)]\n");
 
     let mut prefix = String::new();
     emit_locals_rec(buf, &mut prefix, cmd);
     blank_line(buf);
     w!(buf, "let mut state_ = 0u8;\n");
-    w!(buf, "while let Some(arg_) = p_.pop_flag() {{\n");
+
+    // // No while loop needed for command with no items (clippy::never_loop)
+    // if cmd.args.len() + cmd.flags.len() + cmd.subcommands.len() <= 1 {
+    //     w!(buf, "if let Some(arg_) = p_.pop_flag() {{\n");
+    // } else {
+        w!(buf, "while let Some(arg_) = p_.pop_flag() {{\n");
+    // }
+
     w!(buf, "match arg_ {{\n");
     {
         w!(buf, "Ok(flag_) => match (state_, flag_.as_str()) {{\n");
@@ -246,7 +251,9 @@ fn emit_match_arg_rec(buf: &mut String, prefix: &mut String, cmd: &ast::Cmd) {
     w!(buf, "({}, \"help\") => return Err(p_.help(Self::HELP_{})),\n", cmd.idx, snake(prefix).to_uppercase());
     w!(buf, "({}, \"help\") => return Err(p_.help(Self::HELP_{})),\n", cmd.idx, snake(prefix).to_uppercase());
     for sub in cmd.named_subcommands() {
-        w!(buf, "({}, \"{}\") => state_ = {},\n", cmd.idx, sub.name, sub.idx);
+        let sub_match =
+            sub.all_identifiers().map(|s| format!("\"{s}\"")).collect::<Vec<_>>().join(" | ");
+        w!(buf, "({}, {}) => state_ = {},\n", cmd.idx, sub_match, sub.idx);
     }
     if !cmd.args.is_empty() || cmd.has_subcommands() {
         w!(buf, "({}, _) => {{\n", cmd.idx);
@@ -384,8 +391,15 @@ fn emit_default_transitions(buf: &mut String, cmd: &ast::Cmd) {
 fn emit_help(buf: &mut String, xflags: &ast::XFlags) {
     w!(buf, "impl {} {{\n", xflags.cmd.ident());
 
-    cmd_help_rec(buf, &xflags.cmd, "");
-    
+    let help = {
+        let mut buf = String::new();
+        help_rec(&mut buf, "", &xflags.cmd);
+        buf
+    };
+    let help = format!("{:?}", help);
+    let help = help.replace("\\n", "\n").replacen('\"', "\"\\\n", 1);
+
+    w!(buf, "const HELP_: &'static str = {help};");
     w!(buf, "}}\n");
 }
 
@@ -443,6 +457,9 @@ impl ast::Cmd {
             return "Flags".to_string();
         }
         camel(&self.name)
+    }
+    pub(crate) fn all_identifiers(&self) -> impl Iterator<Item = &String> {
+        [&self.name].into_iter().chain(self.aliases.iter())
     }
     fn cmd_enum_ident(&self) -> String {
         format!("{}Cmd", self.ident())
@@ -577,7 +594,7 @@ mod tests {
             let fmt = reformat(res.clone());
 
             let code = format!(
-                "#![allow(unused)]\nuse std::{{ffi::OsString, path::PathBuf}};\n\n{}",
+                "#[allow(unused)]\nuse std::{{ffi::OsString, path::PathBuf}};\n\n{}",
                 fmt.as_deref().unwrap_or(&res)
             );
 

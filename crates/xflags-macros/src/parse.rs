@@ -69,11 +69,14 @@ fn cmd_impl(p: &mut Parser, anon: bool) -> Result<ast::Cmd> {
         cmd_name(p)?
     };
 
+    let aliases = alias_names(p);
+
     let idx = p.idx;
     p.idx += 1;
 
     let mut res = ast::Cmd {
         name,
+        aliases,
         doc: None,
         args: Vec::new(),
         flags: Vec::new(),
@@ -122,6 +125,15 @@ fn cmd_impl(p: &mut Parser, anon: bool) -> Result<ast::Cmd> {
     if !anon {
         p.exit_delim()?;
     }
+
+    let mut unique_identifiers = std::collections::HashSet::new();
+
+    for ident in res.subcommands.iter().flat_map(|cmd| cmd.all_identifiers()) {
+        if !unique_identifiers.insert(ident) {
+            bail!("`{}` is defined multiple times", ident)
+        }
+    }
+
     Ok(res)
 }
 
@@ -229,6 +241,16 @@ fn cmd_name(p: &mut Parser) -> Result<String> {
     Ok(name)
 }
 
+fn alias_names(p: &mut Parser) -> Vec<String> {
+    let mut aliases = vec![];
+
+    while let Some(alias) = p.eat_name() {
+        aliases.push(alias);
+    }
+
+    aliases
+}
+
 fn flag_name(p: &mut Parser) -> Result<String> {
     let name = p.expect_name()?;
     if !name.starts_with('-') {
@@ -289,7 +311,8 @@ impl Parser {
     }
     fn at_keyword(&mut self, kw: &str) -> bool {
         match self.ts.last() {
-            Some(TokenTree::Ident(ident)) => &ident.to_string() == kw,
+            #[allow(clippy::cmp_owned)]
+            Some(TokenTree::Ident(ident)) => ident.to_string() == kw,
             _ => false,
         }
     }
